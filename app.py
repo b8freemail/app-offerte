@@ -7,7 +7,7 @@ import io
 
 # --- 1. CONFIGURAZIONE PASSWORD E ID ---
 PASSWORD_APP = "offerte2026"  # Puoi cambiare la password qui
-FOLDER_ID = "1qIIS1byFpfXnQvmAl1gZjYTrAgh2qbiw"  # <--- INCOLLA QUI IL CODICE DELLA CARTELLA DRIVE
+FOLDER_ID = "1qIIS1byFpfXnQvmAl1gZjYTrAgh2qbiw"  # <--- INCOLLA QUI IL CODICE DELLA TUA CARTELLA DRIVE
 
 # --- 2. SCHERMATA DI LOGIN ---
 def check_password():
@@ -34,7 +34,6 @@ st.title("📄 Compositore Offerte Automatico")
 
 @st.cache_resource
 def get_drive_service():
-    # Prende la chiave segreta (che configureremo su Streamlit a breve)
     creds_json = st.secrets["gcp_service_account"]
     credentials = service_account.Credentials.from_service_account_info(creds_json)
     service = build('drive', 'v3', credentials=credentials)
@@ -69,29 +68,36 @@ if not files:
     st.warning("Nessun file Word trovato nella cartella Google Drive.")
     st.stop()
 
-st.write("✅ **Seleziona i moduli da includere nell'offerta:**")
+# Mappa dei nomi dei file agli ID di Google Drive
+file_map = {f['name'].replace('.docx', ''): f['id'] for f in files}
+file_options = list(file_map.keys())
 
-selections = {}
-for f in files:
-    nome_pulito = f['name'].replace('.docx', '')
-    selections[f['id']] = st.checkbox(nome_pulito, key=f['id'])
+st.write("✅ **Seleziona i moduli nell'ordine in cui desideri unirli:**")
+st.caption("💡 *Puoi trascinare le etichette con il mouse dentro la casella per cambiarne l'ordine finale.*")
+
+selected_names = st.multiselect(
+    "Scegli i moduli dall'elenco:",
+    options=file_options,
+    default=[]
+)
 
 if st.button("🚀 Genera Offerta Word", type="primary"):
-    selected_ids = [fid for fid, is_selected in selections.items() if is_selected]
-    
-    if not selected_ids:
+    if not selected_names:
         st.error("Seleziona almeno un modulo prima di generare!")
     else:
+        # Prende gli ID rispettando l'ordine esatto scelto dall'utente
+        selected_ids = [file_map[name] for name in selected_names]
+        
         with st.spinner("Creazione offerta in corso... (richiede qualche decina di secondi)"):
             try:
-                # Usa il primo file come Master
+                # Usa il primo file selezionato come Master
                 master_io = download_file(service, selected_ids[0])
                 master_doc = Document(master_io)
                 composer = Composer(master_doc)
                 
-                # Unisce gli altri documenti selezionati
+                # Unisce gli altri documenti nell'ordine esatto dell'elenco
                 for fid in selected_ids[1:]:
-                    master_doc.add_page_break() # Inserisce un salto pagina tra una scheda e l'altra
+                    master_doc.add_page_break() # Salto pagina tra un modulo e l'altro
                     doc_io = download_file(service, fid)
                     doc_to_append = Document(doc_io)
                     composer.append(doc_to_append)
@@ -101,7 +107,7 @@ if st.button("🚀 Genera Offerta Word", type="primary"):
                 composer.save(output_io)
                 output_io.seek(0)
                 
-                st.success("🎉 Offerta generata con successo! Clicca qui sotto per salvarla sul tuo computer.")
+                st.success("🎉 Offerta generata con successo!")
                 st.download_button(
                     label="⬇️ SCARICA IL FILE WORD FINALE",
                     data=output_io,
