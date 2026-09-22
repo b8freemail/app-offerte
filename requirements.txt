@@ -1,6 +1,7 @@
-streamlit
+streamlit==1.38.0
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
 python-docx
 docxcompose
+pyarrow==18.1.0
