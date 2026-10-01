@@ -28,20 +28,25 @@ st.markdown(
 )
 
 
-# --- 2. SCHERMATA DI LOGIN ---
+# --- 2. SCHERMATA DI LOGIN (SUPPORTO TASTO INVIO) ---
 def check_password():
   if "password_correct" not in st.session_state:
     st.session_state["password_correct"] = False
 
   if not st.session_state["password_correct"]:
     st.markdown("### 🔒 Accesso Riservato")
-    pwd = st.text_input("Inserisci la password aziendale:", type="password")
-    if st.button("Accedi"):
-      if pwd == PASSWORD_APP:
-        st.session_state["password_correct"] = True
-        st.rerun()
-      else:
-        st.error("😕 Password errata")
+
+    # L'uso di st.form abilita l'invio sia tramite click che tramite il tasto INVIO
+    with st.form("login_form"):
+      pwd = st.text_input("Inserisci la password aziendale:", type="password")
+      submit_button = st.form_submit_button("Accedi")
+
+      if submit_button:
+        if pwd == PASSWORD_APP:
+          st.session_state["password_correct"] = True
+          st.rerun()
+        else:
+          st.error("😕 Password errata")
     return False
   return True
 
@@ -69,7 +74,7 @@ def get_subfolders_and_files(service, main_folder_id):
   q_main = f"'{main_folder_id}' in parents and trashed=false"
   res_main = (
       service.files()
-      .list(q_main=q_main, fields="files(id, name, mimeType)", pageSize=1000)
+      .list(q=q_main, fields="files(id, name, mimeType)", pageSize=1000)
       .execute()
   )
   items_main = res_main.get("files", [])
@@ -157,7 +162,6 @@ if selected_names:
   st.write("### 2️⃣ Sequenza di unione dell'offerta (Un file per riga):")
 
   for idx, name in enumerate(selected_names, start=1):
-    # Mostra ogni scheda selezionata in una riga separata e ben visibile
     st.info(f"**Posizione {idx}:** {name}")
 
   st.markdown("---")
