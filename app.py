@@ -3,7 +3,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 PASSWORD_APP = "offerta2026"
-FOLDER_ID = "INSERISCI_QUI_IL_FOLDER_ID"  # <--- Inserisci il tuo ID
+FOLDER_ID = "1wp0Vz2jeKf8_N2If9injU5BbwObGjWYD"  # <--- Inserisci il tuo ID
 
 def check_password():
     if "password_correct" not in st.session_state:
