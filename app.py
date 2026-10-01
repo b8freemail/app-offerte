@@ -7,7 +7,7 @@ import io
 
 # --- 1. CONFIGURAZIONE PASSWORD E ID ---
 PASSWORD_APP = "offerta2026"
-FOLDER_ID = "INSERISCI_QUI_IL_FOLDER_ID"  # <--- Sostituisci con l'ID della cartella Schede_Word
+FOLDER_ID = "1wp0Vz2jeKf8_N2If9injU5BbwObGjWYD"  # <--- Sostituisci con l'ID della cartella Schede_Word
 
 # --- 2. SCHERMATA DI LOGIN ---
 def check_password():
