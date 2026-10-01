@@ -9,6 +9,24 @@ import streamlit as st
 PASSWORD_APP = "offerta2026"
 FOLDER_ID = "1wp0Vz2jeKf8_N2If9injU5BbwObGjWYD"
 
+# --- STILE PERSONALIZZATO PER AUMENTARE LA LEGGIBILITÀ ---
+st.set_page_config(page_title="Compositore Offerte", layout="wide")
+st.markdown(
+    """
+    <style>
+    /* Rende le etichette del multiselect più ampie e leggibili */
+    span[data-baseweb="tag"] {
+        max-width: 100% !important;
+        white-space: normal !important;
+        height: auto !important;
+        padding: 6px 10px !important;
+        margin: 3px !important;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
 
 # --- 2. SCHERMATA DI LOGIN ---
 def check_password():
@@ -48,11 +66,10 @@ def get_drive_service():
 def get_subfolders_and_files(service, main_folder_id):
   all_files = []
 
-  # Scansione sotto-cartelle ed eventuali file nella radice
   q_main = f"'{main_folder_id}' in parents and trashed=false"
   res_main = (
       service.files()
-      .list(q=q_main, fields="files(id, name, mimeType)", pageSize=1000)
+      .list(q_main=q_main, fields="files(id, name, mimeType)", pageSize=1000)
       .execute()
   )
   items_main = res_main.get("files", [])
@@ -71,7 +88,7 @@ def get_subfolders_and_files(service, main_folder_id):
   ]
   root_files.sort(key=lambda x: x["name"].lower())
 
-  # 1. Scansione file dentro le sotto-cartelle
+  # 1. File dentro le sotto-cartelle
   for sf in subfolders:
     sf_id = sf["id"]
     sf_name = sf["name"]
@@ -87,10 +104,10 @@ def get_subfolders_and_files(service, main_folder_id):
     for f in sub_items:
       if f["mimeType"] != "application/vnd.google-apps.folder":
         nome_pulito = f["name"].replace(".docx", "").replace(".DOCX", "")
-        display_name = f"📁 [{sf_name}] {nome_pulito}"
+        display_name = f"📁 [{sf_name}]  ➔  {nome_pulito}"
         all_files.append((f["id"], display_name))
 
-  # 2. Scansione file direttamente nella cartella radice
+  # 2. File nella cartella radice
   for f in root_files:
     nome_pulito = f["name"].replace(".docx", "").replace(".DOCX", "")
     display_name = f"📄 {nome_pulito}"
@@ -125,21 +142,27 @@ if not files_list:
 file_map = {display_name: fid for fid, display_name in files_list}
 file_options = list(file_map.keys())
 
-st.write("✅ **Seleziona le schede da includere nell'offerta:**")
-st.caption(
-    "💡 *Le schede indicano la categoria `📁 [Nome Cartella]`. L'ordine di"
-    " selezione determina la sequenza con cui verranno collegate nel"
-    " documento.*"
-)
+st.write("### 1️⃣ Seleziona le schede da includere:")
 
 selected_names = st.multiselect(
-    "Scegli le schede nell'ordine desiderato:", options=file_options, default=[]
+    "Scegli i moduli dall'elenco:",
+    options=file_options,
+    default=[],
+    help="Clicca per aggiungere i moduli nell'ordine desiderato.",
 )
 
-if st.button("🚀 Genera Offerta Word", type="primary"):
-  if not selected_names:
-    st.error("Seleziona almeno un modulo prima di generare!")
-  else:
+# --- ANTEPRIMA ORDINATA PER RIGA ---
+if selected_names:
+  st.markdown("---")
+  st.write("### 2️⃣ Sequenza di unione dell'offerta (Un file per riga):")
+
+  for idx, name in enumerate(selected_names, start=1):
+    # Mostra ogni scheda selezionata in una riga separata e ben visibile
+    st.info(f"**Posizione {idx}:** {name}")
+
+  st.markdown("---")
+
+  if st.button("🚀 Genera Offerta Word", type="primary", use_container_width=True):
     selected_ids = [file_map[name] for name in selected_names]
 
     with st.spinner("Creazione offerta in corso..."):
@@ -166,6 +189,7 @@ if st.button("🚀 Genera Offerta Word", type="primary"):
             mime=(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             ),
+            use_container_width=True,
         )
       except Exception as e:
         st.error(f"Errore durante l'unione dei file: {e}")
