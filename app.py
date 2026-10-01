@@ -6,8 +6,8 @@ from docxcompose.composer import Composer
 import io
 
 # --- 1. CONFIGURAZIONE PASSWORD E ID ---
-PASSWORD_APP = "offerta2026"  # Password di accesso
-FOLDER_ID = "1wp0Vz2jeKf8_N2If9injU5BbwObGjWYD"  # <--- Incolla l'ID della cartella principale Schede_Word
+PASSWORD_APP = "offerta2026"
+FOLDER_ID = "INSERISCI_QUI_IL_FOLDER_ID"  # <--- Sostituisci con l'ID della cartella Schede_Word
 
 # --- 2. SCHERMATA DI LOGIN ---
 def check_password():
@@ -39,34 +39,37 @@ def get_drive_service():
     return build('drive', 'v3', credentials=credentials)
 
 def get_subfolders_and_files(service, main_folder_id):
-    # Recupera le sotto-cartelle (es. Presentazioni, Schede servizio, Prezzi)
-    q_folders = f"'{main_folder_id}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'"
-    res_folders = service.files().list(q=q_folders, fields="files(id, name)", pageSize=100).execute()
-    subfolders = res_folders.get('files', [])
+    all_files = []
+    
+    # Recupera tutti gli elementi dentro la cartella principale
+    q_main = f"'{main_folder_id}' in parents and trashed=false"
+    res_main = service.files().list(q=q_main, fields="files(id, name, mimeType)", pageSize=1000).execute()
+    items_main = res_main.get('files', [])
+
+    subfolders = [item for item in items_main if item['mimeType'] == 'application/vnd.google-apps.folder']
     subfolders.sort(key=lambda x: x['name'].lower())
 
-    all_files = []
+    root_files = [item for item in items_main if item['mimeType'] != 'application/vnd.google-apps.folder']
+    root_files.sort(key=lambda x: x['name'].lower())
 
-    # 1. Scansione dei file Word nelle sotto-cartelle
+    # 1. Scansione sotto-cartelle
     for sf in subfolders:
         sf_id = sf['id']
         sf_name = sf['name']
-        q_files = f"'{sf_id}' in parents and trashed=false and mimeType='application/vnd.openxmlformats-officedocument.wordprocessingml.document'"
-        res_files = service.files().list(q=q_files, fields="files(id, name)", pageSize=1000).execute()
-        files = res_files.get('files', [])
-        files.sort(key=lambda x: x['name'].lower())
-        for f in files:
-            nome_pulito = f['name'].replace('.docx', '')
-            display_name = f"📁 [{sf_name}] {nome_pulito}"
-            all_files.append((f['id'], display_name))
+        q_sub = f"'{sf_id}' in parents and trashed=false"
+        res_sub = service.files().list(q=q_sub, fields="files(id, name, mimeType)", pageSize=1000).execute()
+        sub_items = res_sub.get('files', [])
+        sub_items.sort(key=lambda x: x['name'].lower())
+        
+        for f in sub_items:
+            if f['mimeType'] != 'application/vnd.google-apps.folder':
+                nome_pulito = f['name'].replace('.docx', '').replace('.DOCX', '')
+                display_name = f"📁 [{sf_name}] {nome_pulito}"
+                all_files.append((f['id'], display_name))
 
-    # 2. Scansione di eventuali file messi direttamente nella radice
-    q_root = f"'{main_folder_id}' in parents and trashed=false and mimeType='application/vnd.openxmlformats-officedocument.wordprocessingml.document'"
-    res_root = service.files().list(q=q_root, fields="files(id, name)", pageSize=1000).execute()
-    root_files = res_root.get('files', [])
-    root_files.sort(key=lambda x: x['name'].lower())
+    # 2. Scansione file nella cartella principale
     for f in root_files:
-        nome_pulito = f['name'].replace('.docx', '')
+        nome_pulito = f['name'].replace('.docx', '').replace('.DOCX', '')
         display_name = f"📄 {nome_pulito}"
         all_files.append((f['id'], display_name))
 
@@ -83,25 +86,25 @@ def download_file(service, file_id):
 service = get_drive_service()
 
 # --- 4. INTERFACCIA E CREAZIONE OFFERTA ---
-with st.spinner("Scansione sotto-cartelle su Google Drive in corso..."):
+with st.spinner("Scansione cartelle su Google Drive in corso..."):
     try:
         files_list = get_subfolders_and_files(service, FOLDER_ID)
     except Exception as e:
-        st.error("Errore di collegamento con Google Drive. Verifica i permessi.")
+        st.error(f"Errore di collegamento con Google Drive: {e}")
         st.stop()
 
 if not files_list:
-    st.warning("Nessun file Word trovato nella cartella principale o nelle sotto-cartelle.")
+    st.warning("Nessun file trovato nella cartella principale o nelle sotto-cartelle.")
     st.stop()
 
 file_map = {display_name: fid for fid, display_name in files_list}
 file_options = list(file_map.keys())
 
-st.write("✅ **Seleziona le schede suddivise per tipologia:**")
-st.caption("💡 *Le schede indicano la categoria `📁 [Nome Cartella]`. L'ordine di unione finale seguirà esattamente la sequenza con cui le selezioni.*")
+st.write("✅ **Seleziona le schede da includere nell'offerta:**")
+st.caption("💡 *Le schede indicano la sotto-cartella di appartenenza `📁 [Nome Cartella]`. L'ordine di selezione determina la sequenza finale nel documento.*")
 
 selected_names = st.multiselect(
-    "Scegli i moduli nell'ordine desiderato:",
+    "Scegli le schede nell'ordine desiderato:",
     options=file_options,
     default=[]
 )
